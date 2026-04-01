@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu, Languages } from "lucide-react";
+import { Menu, Languages, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -11,12 +11,76 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
+import { getUserProfile, logout, type UserProfile } from "@/lib/api/auth";
+import { useRouter } from "next/navigation";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [user, setUser] = React.useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
   const { locale, setLocale, t } = useI18n();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      const token = typeof window !== 'undefined' 
+        ? (localStorage.getItem('accessToken') || localStorage.getItem('token'))
+        : null;
+      
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const profile = await getUserProfile();
+        setUser(profile);
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for storage changes (login/logout in other tabs)
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setUser(null);
+      router.push('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Clear local state anyway
+      setUser(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('token');
+      }
+      router.push('/');
+    }
+  };
 
   const navItems = [
     { name: t.nav.home, href: "/" },
@@ -51,28 +115,74 @@ export function Header() {
         </ul>
 
         <div className="hidden lg:flex items-center gap-3">
-          <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
-            <SelectTrigger className="w-[120px] border-none focus:ring-0 shadow-none">
-              <Languages className="h-4 w-4 mr-1" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="zh">中文</SelectItem>
-              <SelectItem value="ja">日本語</SelectItem>
-              <SelectItem value="ko">한국어</SelectItem>
-            </SelectContent>
-          </Select>
-          <Link href="/login">
-            <Button variant="ghost" size="sm" rounded="full" className="text-sm">
-              {t.nav.login}
-            </Button>
-          </Link>
-          <Link href="/register">
-            <Button size="sm" rounded="full" className="text-sm">
-              {t.nav.signup}
-            </Button>
-          </Link>
+          {user ? (
+            <>
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" rounded="full" className="text-sm">
+                  {t.nav.dashboard}
+                </Button>
+              </Link>
+              <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
+                <SelectTrigger className="w-[120px] border-none focus:ring-0 shadow-none">
+                  <Languages className="h-4 w-4 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="zh">中文</SelectItem>
+                  <SelectItem value="ja">日本語</SelectItem>
+                  <SelectItem value="ko">한국어</SelectItem>
+                </SelectContent>
+              </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" rounded="full" className="text-sm">
+                    <User className="h-4 w-4 mr-2" />
+                    {user.name || user.email}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                    {user.email}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    {t.nav.logout}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <>
+              <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
+                <SelectTrigger className="w-[120px] border-none focus:ring-0 shadow-none">
+                  <Languages className="h-4 w-4 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="zh">中文</SelectItem>
+                  <SelectItem value="ja">日本語</SelectItem>
+                  <SelectItem value="ko">한국어</SelectItem>
+                </SelectContent>
+              </Select>
+              {!isLoading && (
+                <>
+                  <Link href="/login">
+                    <Button variant="ghost" size="sm" rounded="full" className="text-sm">
+                      {t.nav.login}
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button size="sm" rounded="full" className="text-sm">
+                      {t.nav.signup}
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </>
+          )}
         </div>
 
         <button
@@ -111,18 +221,43 @@ export function Header() {
                 <SelectItem value="ko">한국어</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex gap-3">
-              <Link href="/login" className="flex-1">
-                <Button variant="ghost" size="sm" rounded="full" className="w-full text-sm">
-                  {t.nav.login}
+            {user ? (
+              <>
+                <Link href="/dashboard" className="w-full">
+                  <Button variant="ghost" size="sm" rounded="full" className="w-full text-sm">
+                    {t.nav.dashboard}
+                  </Button>
+                </Link>
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  {user.email}
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  rounded="full" 
+                  className="w-full text-sm"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {t.nav.logout}
                 </Button>
-              </Link>
-              <Link href="/register" className="flex-1">
-                <Button size="sm" rounded="full" className="w-full text-sm">
-                  {t.nav.signup}
-                </Button>
-              </Link>
-            </div>
+              </>
+            ) : (
+              !isLoading && (
+                <div className="flex gap-3">
+                  <Link href="/login" className="flex-1">
+                    <Button variant="ghost" size="sm" rounded="full" className="w-full text-sm">
+                      {t.nav.login}
+                    </Button>
+                  </Link>
+                  <Link href="/register" className="flex-1">
+                    <Button size="sm" rounded="full" className="w-full text-sm">
+                      {t.nav.signup}
+                    </Button>
+                  </Link>
+                </div>
+              )
+            )}
           </div>
         </div>
       )}

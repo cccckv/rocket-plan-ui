@@ -2,14 +2,14 @@
 
 :root {
   /* Dark theme colors matching CreatOK */
-  --background: 0 0% 3.9%;
+  --background: 0 0% 6%;
   --foreground: 0 0% 98%;
-  --card: 0 0% 3.9%;
+  --card: 0 0% 10%;
   --card-foreground: 0 0% 98%;
-  --popover: 0 0% 3.9%;
+  --popover: 0 0% 10%;
   --popover-foreground: 0 0% 98%;
-  --primary: 24.6 95% 53.1%;
-  --primary-foreground: 0 85.7% 97.3%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 0 0% 10%;
   --secondary: 0 0% 14.9%;
   --secondary-foreground: 0 0% 98%;
   --muted: 0 0% 14.9%;
@@ -18,10 +18,18 @@
   --accent-foreground: 0 0% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14.9%;
+  --border: 0 0% 25%;
   --input: 0 0% 14.9%;
   --ring: 0 0% 83.1%;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+  
+  /* CreatOK custom colors */
+  --brand-orange: 18 100% 60%;
+  --brand-green: 142 71% 45%;
+  --sidebar-bg: 0 0% 10%;
+  --sidebar-hover: 0 0% 16%;
+  --sidebar-active: 0 0% 16%;
+  --topbar-bg: 0 0% 6%;
 }
 
 @theme inline {
@@ -44,6 +52,13 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  
+  --color-brand-orange: hsl(var(--brand-orange));
+  --color-brand-green: hsl(var(--brand-green));
+  --color-sidebar-bg: hsl(var(--sidebar-bg));
+  --color-sidebar-hover: hsl(var(--sidebar-hover));
+  --color-sidebar-active: hsl(var(--sidebar-active));
+  --color-topbar-bg: hsl(var(--topbar-bg));
   
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -78,4 +93,13 @@ body {
 
 .animate-fade-in {
   animation: fade-in 0.6s ease-out forwards;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

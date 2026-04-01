@@ -6,11 +6,10 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { GoogleIcon } from "@/components/google-icon";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { authApi } from "@/lib/api";
 
-export default function RegisterPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"email" | "phone">("email");
   const [loading, setLoading] = useState(false);
@@ -19,11 +18,11 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [formData, setFormData] = useState({
-    name: "",
     email: "",
     phone: "",
     otp: "",
-    password: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
   const handleSendOtp = async () => {
@@ -43,10 +42,10 @@ export default function RegisterPage() {
 
     try {
       if (activeTab === "email") {
-        await authApi.sendEmailOtp(formData.email, 'register');
+        await authApi.sendEmailOtp(formData.email, 'reset');
         setSuccess("验证码已发送，请查收邮箱（开发模式下请查看后端日志）");
       } else {
-        await authApi.sendPhoneOtp(formData.phone, 'register');
+        await authApi.sendPhoneOtp(formData.phone, 'reset');
         setSuccess("验证码已发送，请查看短信（开发模式下请查看后端日志）");
       }
       setOtpSent(true);
@@ -63,32 +62,40 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    if (formData.newPassword !== formData.confirmPassword) {
+      setError("两次输入的密码不一致");
+      return;
+    }
+
+    if (formData.newPassword.length < 6) {
+      setError("密码至少需要6位");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      let response;
       if (activeTab === "email") {
-        response = await authApi.register(
-          formData.name,
+        await authApi.resetPasswordWithEmail(
           formData.email,
           formData.otp,
-          formData.password
+          formData.newPassword
         );
       } else {
-        response = await authApi.registerWithPhone(
+        await authApi.resetPasswordWithPhone(
           formData.phone,
           formData.otp,
-          formData.email,
-          formData.password
+          formData.newPassword
         );
       }
       
-      localStorage.setItem("accessToken", response.data.accessToken);
-      localStorage.setItem("refreshToken", response.data.refreshToken);
-      
-      router.push("/dashboard");
+      setSuccess("密码重置成功，3秒后跳转到登录页面...");
+      setTimeout(() => {
+        router.push("/login");
+      }, 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || "注册失败");
+      setError(err.response?.data?.message || "重置密码失败");
     } finally {
       setLoading(false);
     }
@@ -101,34 +108,12 @@ export default function RegisterPage() {
         <div className="w-full max-w-md space-y-8">
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              创建账户
+              重置密码
             </h1>
-            <p className="text-sm text-muted-foreground">开始您的 AI 视频创作之旅</p>
+            <p className="text-sm text-muted-foreground">通过邮箱或手机号重置您的密码</p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card/50 p-8 backdrop-blur space-y-6">
-            <Button
-              variant="ghost"
-              size="lg"
-              rounded="full"
-              className="w-full border border-border hover:bg-muted"
-              onClick={() => {
-                window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
-              }}
-            >
-              <GoogleIcon className="h-5 w-5" />
-              使用 Google 注册
-            </Button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">或使用以下方式注册</span>
-              </div>
-            </div>
-
             {error && (
               <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/50 text-red-500 text-sm">
                 {error}
@@ -148,26 +133,12 @@ export default function RegisterPage() {
               setSuccess("");
             }}>
               <TabsList className="w-full">
-                <TabsTrigger value="email" className="flex-1">邮箱注册</TabsTrigger>
-                <TabsTrigger value="phone" className="flex-1">手机号注册</TabsTrigger>
+                <TabsTrigger value="email" className="flex-1">邮箱重置</TabsTrigger>
+                <TabsTrigger value="phone" className="flex-1">手机号重置</TabsTrigger>
               </TabsList>
 
               <TabsContent value="email">
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="name" className="text-sm font-medium leading-none">
-                      姓名
-                    </label>
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="张三"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
-                  </div>
-
                   <div className="space-y-2">
                     <label htmlFor="email" className="text-sm font-medium leading-none">
                       邮箱
@@ -209,15 +180,30 @@ export default function RegisterPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="password-email" className="text-sm font-medium leading-none">
-                      密码
+                    <label htmlFor="new-password-email" className="text-sm font-medium leading-none">
+                      新密码
                     </label>
                     <Input
-                      id="password-email"
+                      id="new-password-email"
                       type="password"
                       placeholder="至少6位"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      value={formData.newPassword}
+                      onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="confirm-password-email" className="text-sm font-medium leading-none">
+                      确认密码
+                    </label>
+                    <Input
+                      id="confirm-password-email"
+                      type="password"
+                      placeholder="再次输入密码"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                       required
                       minLength={6}
                     />
@@ -230,7 +216,7 @@ export default function RegisterPage() {
                     className="w-full"
                     disabled={loading}
                   >
-                    {loading ? "注册中..." : "注册"}
+                    {loading ? "重置中..." : "重置密码"}
                   </Button>
                 </form>
               </TabsContent>
@@ -278,28 +264,31 @@ export default function RegisterPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="email-optional" className="text-sm font-medium leading-none">
-                      邮箱（可选）
+                    <label htmlFor="new-password-phone" className="text-sm font-medium leading-none">
+                      新密码
                     </label>
                     <Input
-                      id="email-optional"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      id="new-password-phone"
+                      type="password"
+                      placeholder="至少6位"
+                      value={formData.newPassword}
+                      onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                      required
+                      minLength={6}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="password-phone" className="text-sm font-medium leading-none">
-                      密码（可选）
+                    <label htmlFor="confirm-password-phone" className="text-sm font-medium leading-none">
+                      确认密码
                     </label>
                     <Input
-                      id="password-phone"
+                      id="confirm-password-phone"
                       type="password"
-                      placeholder="至少6位"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="再次输入密码"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      required
                       minLength={6}
                     />
                   </div>
@@ -311,7 +300,7 @@ export default function RegisterPage() {
                     className="w-full"
                     disabled={loading}
                   >
-                    {loading ? "注册中..." : "注册"}
+                    {loading ? "重置中..." : "重置密码"}
                   </Button>
                 </form>
               </TabsContent>
@@ -319,9 +308,9 @@ export default function RegisterPage() {
           </div>
 
           <p className="text-center text-sm text-muted-foreground">
-            已有账号？{" "}
+            想起密码了？{" "}
             <Link href="/login" className="font-medium text-primary hover:underline">
-              立即登录
+              返回登录
             </Link>
           </p>
         </div>

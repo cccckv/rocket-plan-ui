@@ -219,4 +219,4 @@
 3. **API 集成** - 将设置传递给后端
 4. **持久化** - 保存到 localStorage
 
-**访问地址**: http://localhost:3001 或 http://45.76.70.183:3001
+**访问地址**: http://localhost:3001

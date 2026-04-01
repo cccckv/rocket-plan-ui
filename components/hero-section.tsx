@@ -9,7 +9,27 @@ export function HeroSection() {
   const { t } = useI18n();
 
   return (
-    <section id="hero" className="w-full px-4 pt-12 lg:pt-20">
+    <section id="hero" className="relative w-full px-4 pt-12 lg:pt-20 overflow-hidden">
+      {/* Background Video */}
+      <div className="absolute inset-0 -z-10">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ 
+            opacity: 0.4,
+            filter: 'brightness(2) contrast(1.5) saturate(1.5)',
+            mixBlendMode: 'screen'
+          }}
+        >
+          <source src="https://static.echotik.live/creatok/landing/hero-bg.mp4" type="video/mp4" />
+        </video>
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-transparent to-background" />
+      </div>
+      
       <div className="mx-auto flex max-w-7xl flex-col gap-12">
         <div className="animate-fade-in">
           <div className="space-y-4 text-center">
@@ -21,10 +41,10 @@ export function HeroSection() {
               {t.hero.badge}
             </Badge>
             <div className="space-y-3">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-5xl">
-                {t.hero.title}
+              <h1 className="text-3xl font-medium tracking-tight text-zinc-100 md:text-5xl">
+                Turn one <em className="font-display italic not-italic md:italic">winning</em> video into hundreds
               </h1>
-              <p className="mx-auto max-w-4xl text-sm text-muted-foreground md:text-base">
+              <p className="mx-auto max-w-4xl text-sm text-zinc-400 md:text-base">
                 {t.hero.description}
               </p>
             </div>

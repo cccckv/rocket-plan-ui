@@ -29,7 +29,7 @@ export function FeaturesSection() {
             >
               {t.features.badge}
             </Badge>
-            <h2 className="text-3xl font-semibold text-white md:text-5xl">
+            <h2 className="text-3xl font-medium text-zinc-100 md:text-5xl">
               {t.features.title}
             </h2>
           </div>
@@ -44,7 +44,7 @@ export function FeaturesSection() {
                     <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 text-orange-600">
                       <feature.icon className="h-5 w-5" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white">
+                    <h3 className="text-lg font-medium text-zinc-100">
                       {feature.title}
                     </h3>
                     <p className="leading-relaxed text-zinc-400">

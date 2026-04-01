@@ -20,10 +20,10 @@ export function StatsSection() {
       <div className="mx-auto max-w-7xl space-y-12">
         <div className="animate-fade-in">
           <div className="space-y-3 text-center">
-            <h2 className="text-3xl font-semibold text-white md:text-5xl">
+            <h2 className="text-3xl font-medium text-zinc-100 md:text-5xl">
               {t.stats.title}
             </h2>
-            <p className="text-zinc-300">{t.stats.description}</p>
+            <p className="text-zinc-400">{t.stats.description}</p>
           </div>
         </div>
 
@@ -33,10 +33,10 @@ export function StatsSection() {
               <GlowingCard className="text-card-foreground shadow rounded-3xl border border-border bg-muted/30">
                 <div className="flex flex-col items-center justify-center space-y-4 p-8 text-center">
                   <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900">
-                    <stat.icon className="h-7 w-7 text-orange-600" />
+                    <stat.icon className="h-7 w-7 text-zinc-400" />
                   </div>
                   <div className="space-y-1">
-                    <div className="text-4xl font-bold text-white">
+                    <div className="font-display text-4xl font-normal text-zinc-100">
                       {stat.value}
                     </div>
                     <div className="text-sm text-zinc-400">{stat.label}</div>
