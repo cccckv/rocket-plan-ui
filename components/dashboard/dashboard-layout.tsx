@@ -19,7 +19,7 @@ export function DashboardLayout({ children, credits = 0, className }: DashboardL
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar credits={credits} />
         
-        <main className={cn('flex-1 overflow-y-auto', className)}>
+        <main className={cn('flex-1 overflow-y-auto scrollbar-hide', className)}>
           {children}
         </main>
       </div>
