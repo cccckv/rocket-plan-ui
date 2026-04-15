@@ -35,14 +35,14 @@ import {
 import { getBalance } from "@/lib/api/credits";
 import { useRouter } from "next/navigation";
 import {
-  generateImage,
+  generateImageWithPolling,
   IMAGE_MODELS,
-  IMAGE_SIZES,
-  IMAGE_QUALITIES,
-  IMAGE_STYLES,
   CreateImageRequest,
   ImageGenerationResult,
+  ImageModelConfig,
+  ImageTaskResponse,
 } from "@/lib/api/images";
+import { useI18n } from "@/lib/i18n/context";
 
 interface ImageGeneratorFormProps {
   onCreditsChange?: () => void;
@@ -50,6 +50,7 @@ interface ImageGeneratorFormProps {
 
 export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps = {}) {
   const router = useRouter();
+  const { t } = useI18n();
   const [prompt, setPrompt] = React.useState("");
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([]);
   const [selectedModel, setSelectedModel] = React.useState("gemini-2.5-flash-image");
@@ -57,6 +58,17 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
   const [imageSize, setImageSize] = React.useState("1K");
   const [quality, setQuality] = React.useState("standard");
   const [style, setStyle] = React.useState("vivid");
+
+  const currentModelConfig = React.useMemo(
+    () => IMAGE_MODELS.find(m => m.id === selectedModel) || IMAGE_MODELS[0],
+    [selectedModel]
+  );
+
+  React.useEffect(() => {
+    if (!currentModelConfig.supportedResolutions.some(r => r.value === imageSize)) {
+      setImageSize(currentModelConfig.supportedResolutions[0].value);
+    }
+  }, [selectedModel, currentModelConfig, imageSize]);
   const [userCredits, setUserCredits] = React.useState(0);
   const [showInsufficientDialog, setShowInsufficientDialog] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(false);
@@ -102,12 +114,12 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
 
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
     if (imageFiles.length === 0) {
-      alert('Please select image files only');
+      alert(t.images.selectImagesError);
       return;
     }
 
     if (selectedFiles.length + imageFiles.length > 5) {
-      alert('Maximum 5 images allowed');
+      alert(t.images.maxImagesError);
       return;
     }
 
@@ -137,8 +149,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
   };
 
   const getCurrentModelCost = () => {
-    const allModels = [...IMAGE_MODELS.GEMINI, ...IMAGE_MODELS.FLUX];
-    const model = allModels.find(m => m.id === selectedModel);
+    const model = IMAGE_MODELS.find(m => m.id === selectedModel);
     return model?.cost || 0;
   };
 
@@ -177,26 +188,26 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
         referenceImageUrls = await Promise.all(base64Promises);
       }
 
-      const sizeMap: Record<string, string> = {
-        "1:1": "1024x1024",
-        "3:4": "1024x1365",
-        "4:3": "1365x1024",
-        "9:16": "1024x1820",
-        "16:9": "1820x1024"
-      };
-      const finalSize = sizeMap[aspectRatio] || "1024x1024";
-
       const request: CreateImageRequest = {
         model: selectedModel,
         prompt: prompt.trim(),
         n: 1,
-        size: finalSize,
+        aspectRatio,
+        resolution: imageSize,
         quality,
         style,
         referenceImages: referenceImageUrls.length > 0 ? referenceImageUrls : undefined,
       };
 
-      const result = await generateImage(request);
+      const result = await generateImageWithPolling(
+        request,
+        (task: ImageTaskResponse) => {
+          if (task.status === 'failed') {
+            setGenerationError(task.errorMsg || t.images.generateFirst);
+          }
+        },
+        10000
+      );
       setGeneratedImages([result]);
       setSelectedIndex(0);
       await loadCreditData();
@@ -206,54 +217,56 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
     } catch (error: any) {
       console.error('Image generation failed:', error);
       setGenerationError(
-        error.response?.data?.message || 
-        error.message || 
-        'Failed to generate image'
+        error.response?.data?.message ||
+        error.message ||
+        t.images.generateFirst
       );
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const detectImageMimeType = (base64: string): string => {
-    if (base64.startsWith('/9j/')) return 'image/jpeg';
-    if (base64.startsWith('iVBORw0KGgo')) return 'image/png';
-    if (base64.startsWith('R0lGOD')) return 'image/gif';
-    if (base64.startsWith('UklGR')) return 'image/webp';
-    return 'image/png';
+  const getImageSrc = (image: ImageGenerationResult): string => {
+    if (image.imageUrl) {
+      return image.imageUrl;
+    }
+    return '';
   };
 
-  const getImageDataUrl = (base64: string): string => {
-    const mimeType = detectImageMimeType(base64);
-    return `data:${mimeType};base64,${base64}`;
-  };
-
-  const downloadImage = (image: ImageGenerationResult) => {
-    const mimeType = detectImageMimeType(image.imageBase64);
-    const extension = mimeType.split('/')[1];
-    
-    const link = document.createElement('a');
-    link.href = getImageDataUrl(image.imageBase64);
-    link.download = `generated-${Date.now()}.${extension}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadImage = async (image: ImageGenerationResult) => {
+    const src = getImageSrc(image);
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `generated-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
   };
 
   const handleSave = (image: ImageGenerationResult) => {
     setSavedImages(prev => {
-      if (prev.some(img => img.imageBase64 === image.imageBase64)) return prev;
+      const src = getImageSrc(image);
+      if (prev.some(img => getImageSrc(img) === src)) return prev;
       return [image, ...prev];
     });
   };
 
   const handleRemove = (image: ImageGenerationResult) => {
-    setSavedImages(prev => prev.filter(img => img.imageBase64 !== image.imageBase64));
+    const src = getImageSrc(image);
+    setSavedImages(prev => prev.filter(img => getImageSrc(img) !== src));
   };
 
   const displayImages = activeTab === 'current' ? generatedImages : savedImages;
   const selectedImage = displayImages[selectedIndex] || null;
-  const isSaved = selectedImage ? savedImages.some(img => img.imageBase64 === selectedImage.imageBase64) : false;
+  const isSaved = selectedImage ? savedImages.some(img => getImageSrc(img) === getImageSrc(selectedImage)) : false;
   const currentCost = getCurrentModelCost();
   const canAfford = userCredits >= currentCost;
   const isGemini = selectedModel.includes('gemini');
@@ -268,9 +281,15 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
-                Model
+                {t.images.model}
               </label>
-              <Select value={selectedModel} onValueChange={setSelectedModel} disabled={isGenerating}>
+              <Select value={selectedModel} onValueChange={(value) => {
+                const newModel = IMAGE_MODELS.find(m => m.id === value);
+                if (newModel && !newModel.supportedAspectRatios.find(r => r.value === aspectRatio)) {
+                  setAspectRatio(newModel.supportedAspectRatios[0].value);
+                }
+                setSelectedModel(value);
+              }} disabled={isGenerating}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -278,29 +297,17 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
                     Gemini Models
                   </div>
-                  {IMAGE_MODELS.GEMINI.map((model) => (
+                  {IMAGE_MODELS.map((model) => (
                     <SelectItem key={model.id} value={model.id}>
                       <div className="flex items-center justify-between gap-4 w-full">
                         <span>{model.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {model.cost} credits
+                          {model.cost} {t.credits.costs}
                         </span>
                       </div>
                     </SelectItem>
                   ))}
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">
-                    Flux Models
-                  </div>
-                  {IMAGE_MODELS.FLUX.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      <div className="flex items-center justify-between gap-4 w-full">
-                        <span>{model.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {model.cost} credits
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
+
                 </SelectContent>
               </Select>
             </div>
@@ -309,12 +316,12 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
 
             {/* Prompt */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Prompt</label>
+              <label className="block text-sm font-medium">{t.images.prompt}</label>
               <div className="relative">
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Describe your image..."
+                  placeholder={t.images.promptPlaceholder}
                   className="w-full h-32 bg-muted border border-border rounded-xl p-4 resize-none text-sm transition-all focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-muted-foreground"
                   disabled={isGenerating}
                   maxLength={1000}
@@ -325,15 +332,9 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
 
             {/* Aspect Ratio Selector */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Aspect Ratio</label>
+              <label className="text-sm font-medium text-muted-foreground">{t.images.aspectRatio}</label>
               <div className="grid grid-cols-5 gap-2">
-                {[
-                  { value: "1:1", label: "Square", icon: "▢" },
-                  { value: "3:4", label: "Portrait", icon: "▯" },
-                  { value: "4:3", label: "Landscape", icon: "▭" },
-                  { value: "9:16", label: "Tall", icon: "▮" },
-                  { value: "16:9", label: "Wide", icon: "▬" }
-                ].map((ratio) => (
+                {currentModelConfig.supportedAspectRatios.map((ratio) => (
                   <button
                     key={ratio.value}
                     onClick={() => setAspectRatio(ratio.value)}
@@ -356,14 +357,10 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Settings2 className="w-4 h-4" />
-                Resolution
+                {t.images.resolution}
               </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: "1K", label: "1K (Standard)" },
-                  { value: "2K", label: "2K (HD)" },
-                  { value: "4K", label: "4K (Ultra)" }
-                ].map((res) => (
+              <div className={`grid gap-2 ${currentModelConfig.supportedResolutions.length === 1 ? 'grid-cols-1' : currentModelConfig.supportedResolutions.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                {currentModelConfig.supportedResolutions.map((res) => (
                   <button
                     key={res.value}
                     onClick={() => setImageSize(res.value)}
@@ -385,7 +382,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-muted-foreground">
                 <Images className="w-4 h-4 inline mr-1.5" />
-                Reference Images
+                {t.images.referenceImages}
               </label>
               
               <input
@@ -425,7 +422,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                   className="border-2 border-dashed rounded-xl h-24 flex flex-col items-center justify-center cursor-pointer transition-all border-border bg-muted hover:border-primary"
                 >
                   <ImagePlus className="w-5 h-5 text-muted-foreground mb-2" />
-                  <p className="text-xs text-muted-foreground">Click to upload</p>
+                  <p className="text-xs text-muted-foreground">{t.images.uploadReference}</p>
                 </div>
               )}
             </div>
@@ -440,12 +437,12 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
               {isGenerating ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Generating...
+                  {t.images.generating}
                 </>
               ) : (
                 <>
                   <Wand2 className="w-5 h-5 mr-2" />
-                  Generate ({currentCost} credits)
+                  {t.images.generate} ({currentCost} {t.credits.costs})
                 </>
               )}
             </Button>
@@ -458,7 +455,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
 
             {/* Credits */}
             <div className="text-xs text-muted-foreground text-center">
-              Balance: {userCredits.toFixed(2)} credits
+              {t.credits.balance}: {userCredits.toFixed(2)} {t.credits.costs}
             </div>
           </div>
         </GlowingCard>
@@ -477,7 +474,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                 }`}
               >
                 <Images size={14} />
-                Current
+                {t.images.current}
               </button>
               <button
                 onClick={() => { setActiveTab('saved'); setSelectedIndex(0); }}
@@ -486,7 +483,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                 }`}
               >
                 <Layers size={14} />
-                Saved
+                {t.images.saved}
                 {savedImages.length > 0 && (
                   <span className="bg-muted text-xs px-1.5 py-0.5 rounded-full">{savedImages.length}</span>
                 )}
@@ -502,7 +499,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                     onClick={() => isSaved ? handleRemove(selectedImage) : handleSave(selectedImage)}
                   >
                     <Heart className={`w-4 h-4 mr-2 ${isSaved ? 'fill-current' : ''}`} />
-                    {isSaved ? 'Saved' : 'Save'}
+                    {isSaved ? t.images.saved : t.images.save}
                   </Button>
                 )}
                 {activeTab === 'saved' && (
@@ -512,7 +509,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                     onClick={() => handleRemove(selectedImage)}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+                    {t.images.delete}
                   </Button>
                 )}
                 <Button
@@ -520,7 +517,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                   onClick={() => selectedImage && downloadImage(selectedImage)}
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Download
+                  {t.images.download}
                 </Button>
               </div>
             )}
@@ -537,12 +534,12 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                     <div className="absolute inset-0 border-4 border-border rounded-full"></div>
                     <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
                   </div>
-                  <p className="text-primary font-medium animate-pulse">Generating...</p>
+                  <p className="text-primary font-medium animate-pulse">{t.images.generating}</p>
                 </div>
               ) : selectedImage ? (
                 <div className="relative h-full w-full flex items-center justify-center">
                   <img
-                    src={getImageDataUrl(selectedImage.imageBase64)}
+                    src={getImageSrc(selectedImage)}
                     alt="Generated"
                     className="max-h-full max-w-full object-contain rounded-lg shadow-2xl ring-1 ring-border"
                   />
@@ -554,16 +551,16 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                       <div className="w-16 h-16 bg-muted rounded-2xl mx-auto mb-4 flex items-center justify-center border border-border">
                         <Heart className="text-muted-foreground" />
                       </div>
-                      <h3 className="text-lg font-medium text-foreground mb-2">No saved images</h3>
-                      <p className="text-sm">Save your favorites to view them here</p>
+                      <h3 className="text-lg font-medium text-foreground mb-2">{t.images.noImages}</h3>
+                      <p className="text-sm">{t.images.generateFirst}</p>
                     </>
                   ) : (
                     <>
                       <div className="w-20 h-20 bg-muted rounded-2xl mx-auto mb-4 flex items-center justify-center border border-border">
                         <Sparkles className="text-muted-foreground" size={32} />
                       </div>
-                      <h3 className="text-lg font-medium text-foreground mb-2">Ready to create</h3>
-                      <p className="text-sm">Enter a prompt and click generate</p>
+                      <h3 className="text-lg font-medium text-foreground mb-2">{t.images.generateFirst}</h3>
+                      <p className="text-sm">{t.images.promptPlaceholder}</p>
                     </>
                   )}
                 </div>
@@ -583,8 +580,8 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                         : 'border-transparent opacity-60 hover:opacity-90 hover:border-border'
                     }`}
                   >
-                    <img src={getImageDataUrl(img.imageBase64)} alt="" className="w-full h-full object-cover" />
-                    {activeTab === 'current' && savedImages.some(s => s.imageBase64 === img.imageBase64) && (
+                    <img src={getImageSrc(img)} alt="" className="w-full h-full object-cover" />
+                    {activeTab === 'current' && savedImages.some(s => s.imageUrl === img.imageUrl) && (
                       <div className="absolute top-1 right-1 bg-primary rounded-full p-0.5">
                         <Heart size={8} className="fill-white text-white" />
                       </div>
@@ -603,17 +600,18 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-500" />
-              Insufficient Credits
+              {t.credits.insufficient}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              You need <span className="font-semibold text-foreground">{currentCost.toFixed(2)} credits</span> but only have{' '}
-              <span className="font-semibold text-foreground">{userCredits.toFixed(2)} credits</span>.
+              {t.credits.insufficientMessage
+                .replace('{required}', currentCost.toFixed(2))
+                .replace('{available}', userCredits.toFixed(2))}
             </p>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setShowInsufficientDialog(false)} className="flex-1">
-                Cancel
+                {t.credits.close}
               </Button>
               <Button
                 onClick={() => {
@@ -623,7 +621,7 @@ export function ImageGeneratorForm({ onCreditsChange }: ImageGeneratorFormProps 
                 className="flex-1"
               >
                 <Coins className="h-4 w-4 mr-2" />
-                Buy Credits
+                {t.credits.purchase}
               </Button>
             </div>
           </div>
