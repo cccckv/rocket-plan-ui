@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -61,7 +61,7 @@ export interface CreditCostsResponse {
 }
 
 export async function getBalance(): Promise<CreditBalance> {
-  const response = await api.get('/credits/balance');
+  const response = await api.get('/api/credits/balance');
   return response.data;
 }
 
@@ -69,37 +69,35 @@ export async function getTransactions(
   limit: number = 20,
   offset: number = 0
 ): Promise<CreditHistoryResponse> {
-  const response = await api.get('/credits/transactions', {
+  const response = await api.get('/api/credits/transactions', {
     params: { limit, offset },
   });
   return response.data;
 }
 
 export async function getCreditCosts(): Promise<CreditCostsResponse> {
-  const response = await api.get('/credits/costs');
+  const response = await api.get('/api/credits/costs');
   return response.data;
 }
 
 export const DEFAULT_CREDIT_COSTS: Record<string, number> = {
+  // Models with both start and end frame control (首尾帧)
+  'veo3.1': 0.70,
+  'veo3.1-fast': 0.70,
+  'veo3.1-pro': 3.50,
+  'veo3.1-pro-4k': 3.50,
+  
+  // Models with start frame only (首帧)
+  'veo3.1-components-4k': 1.00,
+  'veo3-pro-frames': 4.00,
+  'veo3-fast-frames': 0.90,
+  'veo3-frames': 0.90,
+  
+  // Models without frame control
+  'veo3.1-4k': 1.00,
+  'veo3.1-components': 0.70,
   'veo3.1-fast-components': 0.26,
-  'veo_3_1-fast-components': 0.26,
-  'veo_3_1-fast': 0.52,
-  'veo_3_1-fast-4K': 0.78,
-  'veo3.1-fast': 0.52,
-  'veo3-fast': 0.52,
-  'veo3.1': 1.04,
-  'veo_3_1': 1.04,
-  'veo3.1-components': 0.78,
-  'veo_3_1-components': 0.78,
-  'veo3': 1.04,
-  'veo_3_1-4K': 1.56,
-  'veo_3_1-components-4K': 1.56,
-  'veo_3_1-fast-components-4K': 1.04,
-  'veo3.1-4k': 1.56,
-  'veo3.1-components-4k': 1.56,
-  'veo3-fast-frames': 2.08,
-  'veo3-frames': 2.60,
-  'veo3-pro-frames': 3.64,
-  'veo3.1-pro': 5.20,
-  'veo3.1-pro-4k': 7.80,
+  'veo3': 0.90,
+  'veo3-fast': 0.90,
+  'veo3-pro': 4.00,
 };
