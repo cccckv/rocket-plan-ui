@@ -50,6 +50,7 @@ import { getBalance, getCreditCosts, DEFAULT_CREDIT_COSTS } from "@/lib/api/cred
 import { useRouter } from "next/navigation";
 import { getModelSpecs } from "@/lib/model-specs";
 import { createVideoTask, pollTaskStatus, VideoTask } from "@/lib/api/videos";
+import { getAvailableModels, isModelAvailableForTab } from "@/lib/model-categories";
 
 type TabType = "reference" | "frame";
 
@@ -81,6 +82,15 @@ export function VideoGeneratorForm({ onCreditsChange }: VideoGeneratorFormProps)
   const firstFrameInputRef = React.useRef<HTMLInputElement>(null);
   const lastFrameInputRef = React.useRef<HTMLInputElement>(null);
   const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    if (!isModelAvailableForTab(selectedModel, activeTab)) {
+      const availableModels = getAvailableModels(activeTab);
+      if (availableModels.length > 0) {
+        setSelectedModel(availableModels[0]);
+      }
+    }
+  }, [activeTab, selectedModel]);
 
   React.useEffect(() => {
     const checkLoginStatus = () => {
@@ -515,27 +525,43 @@ export function VideoGeneratorForm({ onCreditsChange }: VideoGeneratorFormProps)
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="veo3.1-fast-components">Veo 3.1 Fast Components ({creditCosts['veo3.1-fast-components']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo_3_1-fast-components">Veo 3.1 Fast Components Alt ({creditCosts['veo_3_1-fast-components']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo_3_1-fast">Veo 3.1 Fast ({creditCosts['veo_3_1-fast']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo_3_1-fast-4K">Veo 3.1 Fast 4K ({creditCosts['veo_3_1-fast-4K']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3.1-fast">Veo 3.1 Fast ({creditCosts['veo3.1-fast']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3-fast">Veo 3 Fast ({creditCosts['veo3-fast']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3.1">Veo 3.1 ({creditCosts['veo3.1']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo_3_1">Veo 3.1 Alt ({creditCosts['veo_3_1']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3.1-components">Veo 3.1 Components ({creditCosts['veo3.1-components']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo_3_1-components">Veo 3.1 Components Alt ({creditCosts['veo_3_1-components']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3">Veo 3 ({creditCosts['veo3']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo_3_1-4K">Veo 3.1 4K ({creditCosts['veo_3_1-4K']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo_3_1-components-4K">Veo 3.1 Components 4K ({creditCosts['veo_3_1-components-4K']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo_3_1-fast-components-4K">Veo 3.1 Fast Components 4K ({creditCosts['veo_3_1-fast-components-4K']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3.1-4k">Veo 3.1 4K ({creditCosts['veo3.1-4k']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3.1-components-4k">Veo 3.1 Components 4K ({creditCosts['veo3.1-components-4k']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3-fast-frames">Veo 3 Fast Frames ({creditCosts['veo3-fast-frames']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3-frames">Veo 3 Frames ({creditCosts['veo3-frames']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3-pro-frames">Veo 3 Pro Frames ({creditCosts['veo3-pro-frames']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3.1-pro">Veo 3.1 Pro ({creditCosts['veo3.1-pro']?.toFixed(2)} {t.credits.costs})</SelectItem>
-                  <SelectItem value="veo3.1-pro-4k">Veo 3.1 Pro 4K ({creditCosts['veo3.1-pro-4k']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                  {activeTab === "reference" ? (
+                    <>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Budget (Components)</div>
+                      <SelectItem value="veo3.1-fast-components">Veo 3.1 Fast Components ({creditCosts['veo3.1-fast-components']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Standard</div>
+                      <SelectItem value="veo3.1-components">Veo 3.1 Components ({creditCosts['veo3.1-components']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      <SelectItem value="veo3">Veo 3 ({creditCosts['veo3']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      <SelectItem value="veo3-fast">Veo 3 Fast ({creditCosts['veo3-fast']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">High Quality (4K)</div>
+                      <SelectItem value="veo3.1-4k">Veo 3.1 4K ({creditCosts['veo3.1-4k']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Premium</div>
+                      <SelectItem value="veo3-pro">Veo 3 Pro ({creditCosts['veo3-pro']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Standard - 首尾帧</div>
+                      <SelectItem value="veo3.1-fast">Veo 3.1 Fast ({creditCosts['veo3.1-fast']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      <SelectItem value="veo3.1">Veo 3.1 ({creditCosts['veo3.1']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Standard - 首帧</div>
+                      <SelectItem value="veo3-fast-frames">Veo 3 Fast ({creditCosts['veo3-fast-frames']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      <SelectItem value="veo3-frames">Veo 3 ({creditCosts['veo3-frames']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">High Quality - 首帧 (4K)</div>
+                      <SelectItem value="veo3.1-components-4k">Veo 3.1 Components 4K ({creditCosts['veo3.1-components-4k']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Premium - 首尾帧</div>
+                      <SelectItem value="veo3.1-pro">Veo 3.1 Pro ({creditCosts['veo3.1-pro']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      <SelectItem value="veo3.1-pro-4k">Veo 3.1 Pro 4K ({creditCosts['veo3.1-pro-4k']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                      
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">Premium - 首帧</div>
+                      <SelectItem value="veo3-pro-frames">Veo 3 Pro ({creditCosts['veo3-pro-frames']?.toFixed(2)} {t.credits.costs})</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
 
@@ -659,7 +685,7 @@ export function VideoGeneratorForm({ onCreditsChange }: VideoGeneratorFormProps)
                 size="sm"
                 rounded="full"
                 className="h-8 px-3 text-xs shadow-sm relative"
-                disabled={!prompt.trim() || isGenerating || (isLoggedIn && !hasEnoughCredits)}
+                disabled={isGenerating || (isLoggedIn && (!prompt.trim() || !hasEnoughCredits))}
                 onClick={handleGenerate}
                 title={
                   !isLoggedIn 
@@ -732,13 +758,15 @@ export function VideoGeneratorForm({ onCreditsChange }: VideoGeneratorFormProps)
               {/* Video Player for Completed Tasks */}
               {currentTask.status === 'completed' && (currentTask.resultUrl || currentTask.localPath) && (
                 <div className="space-y-3">
-                  <video
-                    controls
-                    className="w-full rounded-lg bg-black"
-                    src={currentTask.resultUrl || currentTask.localPath}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
+                  <div className="flex justify-center">
+                    <video
+                      controls
+                      className="max-w-2xl w-full rounded-lg bg-black"
+                      src={currentTask.resultUrl || currentTask.localPath}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"

@@ -85,11 +85,7 @@ export function Header() {
   const navItems = [
     { name: t.nav.home, href: "/" },
     { name: t.nav.features, href: "#features" },
-    { name: t.nav.models, href: "#models" },
-    { name: t.nav.tools, href: "#tools" },
-    { name: t.nav.agents, href: "/agent-skills" },
     { name: t.nav.pricing, href: "/pricing" },
-    { name: t.nav.faq, href: "#faq" },
   ];
 
   return (
