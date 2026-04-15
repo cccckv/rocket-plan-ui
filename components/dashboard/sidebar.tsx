@@ -15,6 +15,9 @@ import {
   ChevronDown,
   Menu,
   LogOut,
+  Settings,
+  Languages,
+  Check,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -22,70 +25,82 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { getUserProfile, logout, type UserProfile } from '@/lib/api/auth';
 import { useI18n } from '@/lib/i18n/context';
+import type { Locale } from '@/lib/i18n/translations';
+
+const LOCALE_OPTIONS: { value: Locale; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'zh', label: '中文' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+];
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
-  label: string;
+  labelKey: string;
   badge?: string;
+  badgeKey?: string;
   badgeColor?: 'orange' | 'green' | 'gray';
   href?: string;
   children?: NavItem[];
 }
 
-const navItems: NavItem[] = [
+const navItemsConfig: NavItem[] = [
   {
     icon: Home,
-    label: '首页',
+    labelKey: 'dashboard.home',
     href: '/dashboard',
   },
   {
     icon: BarChart3,
-    label: '视频分析',
+    labelKey: 'dashboard.analytics',
     href: '/dashboard/analytics',
   },
 ];
 
-const createItems: NavItem[] = [
+const createItemsConfig: NavItem[] = [
   {
     icon: Video,
-    label: '视频',
+    labelKey: 'dashboard.videos',
     badge: 'Sora 2',
     badgeColor: 'orange',
     children: [
       {
         icon: Store,
-        label: '灵感广场',
+        labelKey: 'dashboard.inspiration',
         href: '/dashboard/videos/inspiration',
       },
       {
         icon: Sparkles,
-        label: 'Sora 生成',
-        badge: '标准可用',
+        labelKey: 'dashboard.generate',
+        badgeKey: 'dashboard.availableStandard',
         badgeColor: 'green',
         href: '/dashboard/videos/generate',
       },
       {
         icon: FileText,
-        label: '提示词模型',
+        labelKey: 'dashboard.prompts',
         href: '/dashboard/videos/prompts',
       },
     ],
   },
   {
     icon: ImageIcon,
-    label: '图片',
+    labelKey: 'dashboard.images',
     badge: '2',
     badgeColor: 'gray',
     href: '/dashboard/images',
   },
   {
     icon: Sparkles,
-    label: '一键同款',
-    badge: 'New',
+    labelKey: 'dashboard.clone',
+    badgeKey: 'dashboard.new',
     badgeColor: 'orange',
     href: '/dashboard/clone',
   },
@@ -125,6 +140,7 @@ interface NavItemComponentProps {
 
 function NavItemComponent({ item, isActive = false, level = 0 }: NavItemComponentProps) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(level === 0);
   const hasChildren = item.children && item.children.length > 0;
   const Icon = item.icon;
@@ -132,11 +148,24 @@ function NavItemComponent({ item, isActive = false, level = 0 }: NavItemComponen
   const isChildActive = hasChildren && item.children?.some(child => pathname === child.href);
   const shouldHighlight = isActive || isChildActive;
 
+  const getTranslation = (key: string) => {
+    const parts = key.split('.');
+    let value: any = t;
+    for (const part of parts) {
+      value = value?.[part];
+    }
+    return value || key;
+  };
+
   const content = (
     <>
       <Icon className="w-5 h-5 shrink-0" />
-      <span className="flex-1 text-left text-sm font-medium">{item.label}</span>
-      {item.badge && <Badge color={item.badgeColor}>{item.badge}</Badge>}
+      <span className="flex-1 text-left text-sm font-medium">{getTranslation(item.labelKey)}</span>
+      {(item.badge || item.badgeKey) && (
+        <Badge color={item.badgeColor}>
+          {item.badgeKey ? getTranslation(item.badgeKey) : item.badge}
+        </Badge>
+      )}
       {hasChildren && (
         isOpen ? (
           <ChevronDown className="w-4 h-4 shrink-0" />
@@ -191,7 +220,7 @@ interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
@@ -246,7 +275,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       <div className="flex-1 overflow-y-auto scrollbar-hide px-4 space-y-6">
         <div className="space-y-1">
-          {navItems.map((item, index) => (
+          {navItemsConfig.map((item, index) => (
             <NavItemComponent 
               key={index} 
               item={item} 
@@ -257,9 +286,9 @@ export function Sidebar({ className }: SidebarProps) {
 
         <div className="space-y-1">
           <div className="px-3 py-1 text-xs font-semibold text-muted-foreground">
-            创作
+            {t.dashboard.create}
           </div>
-          {createItems.map((item, index) => (
+          {createItemsConfig.map((item, index) => (
             <NavItemComponent 
               key={index} 
               item={item}
@@ -301,6 +330,33 @@ export function Sidebar({ className }: SidebarProps) {
                 <DropdownMenuSeparator />
               </>
             )}
+            <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
+              <Settings className="h-4 w-4 mr-2" />
+              {t.nav.settings}
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Languages className="h-4 w-4 mr-2" />
+                {t.nav.language}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {LOCALE_OPTIONS.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() => setLocale(option.value)}
+                  >
+                    <Check
+                      className={cn(
+                        'h-4 w-4 mr-2',
+                        locale === option.value ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
               <LogOut className="h-4 w-4 mr-2" />
               {t.nav.logout}

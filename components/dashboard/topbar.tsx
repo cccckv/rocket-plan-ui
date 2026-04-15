@@ -23,7 +23,7 @@ export function TopBar({ className, credits = 0 }: TopBarProps) {
     <div className={cn('h-16 bg-topbar-bg flex items-center justify-end px-6 gap-4', className)}>
       <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-sidebar-hover transition-colors text-sm">
         <span className="text-pink-500">🎯</span>
-        <span>Skills</span>
+        <span>{t.dashboard.skills}</span>
       </button>
 
       <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-sidebar-hover transition-colors">
@@ -36,7 +36,7 @@ export function TopBar({ className, credits = 0 }: TopBarProps) {
 
       <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-sidebar-hover transition-colors">
         <Crown className="w-4 h-4 text-brand-orange" />
-        <span className="text-sm text-brand-orange">升级</span>
+        <span className="text-sm text-brand-orange">{t.dashboard.upgrade}</span>
       </button>
 
       <button
