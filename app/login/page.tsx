@@ -7,10 +7,13 @@ import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GoogleIcon } from "@/components/google-icon";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useI18n } from "@/lib/i18n/context";
 import { authApi } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -31,7 +34,7 @@ export default function LoginPage() {
       
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.message || "登录失败，请检查账号密码");
+      setError(err.response?.data?.message || t.auth.loginError);
     } finally {
       setLoading(false);
     }
@@ -42,11 +45,15 @@ export default function LoginPage() {
       <Header />
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md space-y-8">
+          <div className="flex justify-end">
+            <LanguageSwitcher />
+          </div>
+
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              欢迎回来
+              {t.auth.welcomeBack}
             </h1>
-            <p className="text-sm text-muted-foreground">登录您的账户继续使用</p>
+            <p className="text-sm text-muted-foreground">{t.auth.signInSubtitle}</p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card/50 p-8 backdrop-blur space-y-6">
@@ -56,11 +63,11 @@ export default function LoginPage() {
               rounded="full"
               className="w-full border border-border hover:bg-muted"
               onClick={() => {
-                window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
+                window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`;
               }}
             >
               <GoogleIcon className="h-5 w-5" />
-              使用 Google 登录
+              {t.auth.continueWithGoogle}
             </Button>
 
             <div className="relative">
@@ -68,7 +75,7 @@ export default function LoginPage() {
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">或使用邮箱登录</span>
+                <span className="bg-card px-2 text-muted-foreground">{t.auth.orContinueWith}</span>
               </div>
             </div>
 
@@ -81,12 +88,12 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="account" className="text-sm font-medium leading-none">
-                  邮箱或手机号
+                  {t.auth.account}
                 </label>
                 <Input
                   id="account"
                   type="text"
-                  placeholder="you@example.com"
+                  placeholder={t.auth.emailPlaceholder}
                   value={formData.account}
                   onChange={(e) => setFormData({ ...formData, account: e.target.value })}
                   required
@@ -96,10 +103,10 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label htmlFor="password" className="text-sm font-medium leading-none">
-                    密码
+                    {t.auth.password}
                   </label>
                   <Link href="/forgot-password" className="text-xs text-primary hover:underline">
-                    忘记密码？
+                    {t.auth.forgotPassword}
                   </Link>
                 </div>
                 <Input
@@ -119,15 +126,15 @@ export default function LoginPage() {
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? "登录中..." : "登录"}
+                {loading ? t.auth.signingIn : t.auth.signIn}
               </Button>
             </form>
           </div>
 
           <p className="text-center text-sm text-muted-foreground">
-            还没有账号？{" "}
+            {t.auth.noAccount}{" "}
             <Link href="/register" className="font-medium text-primary hover:underline">
-              立即注册
+              {t.auth.signUp}
             </Link>
           </p>
         </div>

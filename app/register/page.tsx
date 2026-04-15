@@ -7,11 +7,14 @@ import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GoogleIcon } from "@/components/google-icon";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useI18n } from "@/lib/i18n/context";
 import { authApi } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"email" | "phone">("email");
   const [loading, setLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
@@ -99,11 +102,15 @@ export default function RegisterPage() {
       <Header />
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md space-y-8">
+          <div className="flex justify-end">
+            <LanguageSwitcher />
+          </div>
+
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              创建账户
+              {t.auth.createAccount}
             </h1>
-            <p className="text-sm text-muted-foreground">开始您的 AI 视频创作之旅</p>
+            <p className="text-sm text-muted-foreground">{t.auth.signUpSubtitle}</p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card/50 p-8 backdrop-blur space-y-6">
@@ -117,7 +124,7 @@ export default function RegisterPage() {
               }}
             >
               <GoogleIcon className="h-5 w-5" />
-              使用 Google 注册
+              {t.auth.registerWithGoogle}
             </Button>
 
             <div className="relative">
@@ -125,7 +132,7 @@ export default function RegisterPage() {
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">或使用以下方式注册</span>
+                <span className="bg-card px-2 text-muted-foreground">{t.auth.orRegisterWith}</span>
               </div>
             </div>
 
@@ -148,8 +155,8 @@ export default function RegisterPage() {
               setSuccess("");
             }}>
               <TabsList className="w-full">
-                <TabsTrigger value="email" className="flex-1">邮箱注册</TabsTrigger>
-                <TabsTrigger value="phone" className="flex-1">手机号注册</TabsTrigger>
+                <TabsTrigger value="email" className="flex-1">{t.auth.emailTab}</TabsTrigger>
+                <TabsTrigger value="phone" className="flex-1">{t.auth.phoneTab}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="email">
@@ -319,9 +326,9 @@ export default function RegisterPage() {
           </div>
 
           <p className="text-center text-sm text-muted-foreground">
-            已有账号？{" "}
+            {t.auth.hasAccount}{" "}
             <Link href="/login" className="font-medium text-primary hover:underline">
-              立即登录
+              {t.auth.loginNow}
             </Link>
           </p>
         </div>
