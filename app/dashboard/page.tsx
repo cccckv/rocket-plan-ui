@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard';
-import { HeroSectionSimple } from '@/components/dashboard/hero-section-simple';
-import { VideoGeneratorForm } from '@/components/video-generator-form';
+import { VideoGeneratorFormWithHistory } from '@/components/video-generator-form-with-history';
 import { getBalance } from '@/lib/api/credits';
 
 export default function DashboardPage() {
@@ -24,10 +23,9 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout credits={credits}>
-      <div className="flex flex-col">
-        <HeroSectionSimple />
-        <div className="w-full px-4 py-8">
-          <VideoGeneratorForm onCreditsChange={loadCredits} />
+      <div className="flex flex-col h-full">
+        <div className="w-full px-4 py-0">
+          <VideoGeneratorFormWithHistory onCreditsChange={loadCredits} />
         </div>
       </div>
     </DashboardLayout>
